@@ -58,6 +58,12 @@ validate the real host's loader or lifecycle.
 
 ## One-server runtime procedure
 
+This procedure currently applies only to Windows. The local `stage/Packages/`
+contains `nexus_bridge.dll`, not a Linux binary. A Linux server requires
+`Packages/nexus-bridge/libnexus_bridge.so`; do not deploy this Windows staging
+directory as a Linux candidate. Linux validation is blocked until the SDK linkage
+issue below is resolved and a Linux artifact passes the standalone checks.
+
 Use branch `feat/bridge-native-loading` at the candidate commit identified in the
 PR. One isolated Windows x64 nanos world server is sufficient; no players,
 credentials, Proxy or second server are needed. Record the server version from
@@ -142,7 +148,16 @@ baseline, independently of the native Lua version. These results do not establis
 native ABI compatibility: the module had not been loaded. The script manifest now
 includes the required fields, and the startup procedure includes the required flag.
 
-Real nanos world loading is awaiting a retry of the procedure above. Linux host
-loading is also unvalidated. After successful native-host feedback, the next milestone adds
+The second host attempt progressed past the unsafe-library gate but requested
+`Packages/nexus-bridge/libnexus_bridge.so`, revealing that the test host uses the
+Linux loader. The supplied local artifact was Windows-only. It failed before
+loading native code, so neither attempt validates the ABI or reload behavior.
+Before preparing another host candidate, establish the host distribution/version,
+CPU architecture, container environment and nanos world build. Resolve Linux
+linkage and provide the matching artifact before requesting another Linux test.
+
+Real nanos world loading remains unvalidated on both platforms. The procedure
+above is available for a Windows test host only. After successful native-host
+feedback, the next milestone adds
 bounded transport and tests two server processes, worker shutdown, Lua polling,
 slow peers and tick impact. That proof still blocks inter-server product features.
