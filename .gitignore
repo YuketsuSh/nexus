@@ -1,6 +1,10 @@
 # Private local development material
 /internal-docs/
 
+# Local builds and installation staging
+/build/
+/stage/
+
 # Compiled Lua sources
 luac.out
 

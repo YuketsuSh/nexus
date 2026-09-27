@@ -1,0 +1,7 @@
+[meta]
+title = "Nexus Bridge"
+author = "Yuketsu"
+version = "0.1.0"
+
+[c_module]
+modules = ["nexus_bridge"]
