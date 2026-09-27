@@ -8,7 +8,8 @@ It is the first prerequisite for the transport proof, not a usable network Bridg
 
 Requirements: Git with Git LFS, CMake 3.21 or newer and a 64-bit C++17 compiler.
 On Windows use Visual Studio C++ Build Tools with a Windows SDK. On Linux use GCC
-or Clang and the system C/C++ development libraries. The official SDK is pinned as
+or Clang and the system C/C++ development libraries; Linux linking is currently
+blocked by the upstream SDK archive as detailed below. The official SDK is pinned as
 a submodule; no dependency download happens during CMake configuration.
 
 From the repository root:
@@ -109,8 +110,17 @@ The console commands follow the
 Local Windows Release compilation and the standalone CTest contract have passed
 using MSVC 19.51.36257, CMake 4.1.2 and the pinned SDK. Export inspection found
 `luaopen_nexus_bridge` as the sole DLL export. Installation staging was exercised.
-The CI workflow builds and runs the same test on Windows and Linux; consult the
-candidate's actual check results rather than assuming they passed.
+The first [CI run](https://github.com/YuketsuSh/nexus/actions/runs/36345525857)
+passed the Windows build, contract test and installation steps. Linux failed
+while linking the shared module: the pinned SDK's `liblua.a(lauxlib.c.o)` contains
+`R_X86_64_PC32` relocations against `stderr`; the linker requires a PIC rebuild.
+No Linux binary or test success is claimed. The Linux job remains enabled so this
+blocker stays visible. Consult the candidate's actual check results.
+
+Resolution requires an official PIC-compatible SDK archive, or a separately
+verified and agreed Linux linking contract. Do not silently substitute a system
+Lua library or assume that the nanos world executable exports the needed symbols.
+This issue blocks Linux support but does not invalidate the Windows build.
 
 Real nanos world loading is awaiting the procedure above. Linux host loading is
 also unvalidated. After successful native-host feedback, the next milestone adds
