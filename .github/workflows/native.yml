@@ -1,0 +1,38 @@
+name: Native loading
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: recursive
+          lfs: true
+          persist-credentials: false
+      - name: Materialize SDK libraries
+        run: git -C bridge/deps/module-sdk lfs pull
+      - name: Check repository privacy
+        shell: bash
+        run: |
+          test -z "$(git ls-files -- internal-docs)"
+          git check-ignore internal-docs/privacy-check.txt
+          git diff --check
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Stage runtime checkpoint
+        run: cmake --install build --config Release --prefix stage

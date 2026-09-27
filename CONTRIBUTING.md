@@ -35,4 +35,4 @@ test procedure has been run and the results recorded.
 Proxy and Agent code will use Lua 5.4. Bridge code will use C++17 behind a Lua C
 ABI, with CMake and CTest. The official module SDK must be pinned and its Git LFS
 libraries materialized. No external service is required by the intended runtime.
-Build instructions will be added with the first native milestone.
+See the [native checkpoint](docs/bridge-loading.md) for build and test instructions.
