@@ -71,7 +71,18 @@ the startup log. Keep an existing unrelated GameMode and its map/dependencies.
    `[game].packages`. Preserve existing entries and `game_mode`. The harness
    declares `nexus-bridge` as a dependency, so no second list entry is necessary.
    No Nexus address, secret, port or firewall change is needed for this test.
-3. Start this one server normally. Expect these message bodies (the server adds
+3. Add `--enable_unsafe_libs` to the server's launch arguments, preserving any
+   existing arguments. For a direct PowerShell launch from the server directory:
+
+   ```powershell
+   .\NanosWorldServer.exe --enable_unsafe_libs
+   ```
+
+   This is a process startup flag, not a console command or a Package setting.
+   The tested server refuses C Modules without it. It also enables otherwise
+   restricted Lua OS and I/O functions for server Packages, so use trusted
+   Packages on the isolated test instance. Start the server with this flag on
+   subsequent restarts too. Expect these message bodies (the server adds
    its own log prefix), with no assertion or native-loader error:
 
    ```text
@@ -122,7 +133,16 @@ verified and agreed Linux linking contract. Do not silently substitute a system
 Lua library or assume that the nanos world executable exports the needed symbols.
 This issue blocks Linux support but does not invalidate the Windows build.
 
-Real nanos world loading is awaiting the procedure above. Linux host loading is
-also unvalidated. After successful native-host feedback, the next milestone adds
+The first real-server attempt refused the C Module because the startup flag was
+missing; the harness then reported that the Bridge global was unavailable.
+The server also inserted omitted manifest fields, including the confirmed string
+`lua_version = "5.4"` under `[c_module]`. Both manifests now include those fields.
+The script's `compatibility_version = "1.156"` selects the documented scripting
+baseline, independently of the native Lua version. These results do not establish
+native ABI compatibility: the module had not been loaded. The script manifest now
+includes the required fields, and the startup procedure includes the required flag.
+
+Real nanos world loading is awaiting a retry of the procedure above. Linux host
+loading is also unvalidated. After successful native-host feedback, the next milestone adds
 bounded transport and tests two server processes, worker shutdown, Lua polling,
 slow peers and tick impact. That proof still blocks inter-server product features.

@@ -4,4 +4,5 @@ author = "Yuketsu"
 version = "0.1.0"
 
 [c_module]
+lua_version = "5.4"
 modules = ["nexus_bridge"]

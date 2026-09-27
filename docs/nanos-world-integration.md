@@ -4,6 +4,12 @@ Reviewed on 2026-09-27 against the official documentation and repositories.
 The current documentation identifies a1.156.0; that is a research baseline, not a
 tested Nexus compatibility claim. No real-host validation has been completed.
 
+The first host attempt established that C Module loading requires the process
+argument `--enable_unsafe_libs` on the tested server. The public C Module example
+omits this prerequisite. The flag also enables restricted Lua OS/I/O facilities
+for server Packages; it is part of the deployment trust boundary. That attempt
+stopped before native loading and does not validate the ABI.
+
 ## Packaging and languages
 
 The [Packages guide](https://docs.nanos-world.com/docs/core-concepts/packages/packages-guide)
