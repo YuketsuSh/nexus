@@ -36,6 +36,13 @@ packages in advance.
 
 ## Validation gates
 
+The native diagnostic's startup, script/VM reload and process restart checkpoint
+has passed on the maintainer's 1.156.0 host; platform details and Windows host
+coverage remain limited as recorded in `bridge-loading.md`. The transport branch
+first delivers independently tested framing and bounded native queues (see
+`bridge-wire.md`). Sockets, worker lifetime and Lua polling follow as a separate
+reviewable slice; the full two-server gate remains mandatory.
+
 1. One isolated server: native module load, ABI diagnostics, initialization and
    cleanup. Record server build, platform, SDK revision and compiler.
 2. Two servers: bidirectional Bridge messages, bounded polling, malformed frames,
