@@ -180,10 +180,14 @@ identify the distribution, process architecture or artifact commit. Those
 environment details still need confirmation. The screenshot is not committed
 because it contains unrelated server identifiers.
 
-Script reload, whole-VM reload, clean shutdown and restart results remain pending.
+The maintainer subsequently supplied logs showing successful script reload and
+`package reload all`, each followed by another completed 100-call cycle. The
+whole-VM reload reported a single 71.37 ms tick while reloading all Packages;
+this is not a measurement of Bridge overhead. Clean process shutdown and a full
+restart with another completed cycle were also confirmed by the maintainer.
+This closes the diagnostic-only lifecycle checkpoint on that test host. It does
+not establish worker shutdown safety: the diagnostic module has no workers yet.
 Windows host loading and ARM execution under emulation are also unvalidated.
-PR #2 was merged by the maintainer; merging does not supply missing runtime
-evidence. Complete the remaining one-server procedure before adding transport.
-After successful lifecycle feedback, the next milestone adds
+PR #2 was merged by the maintainer. The next milestone adds
 bounded transport and tests two server processes, worker shutdown, Lua polling,
 slow peers and tick impact. That proof still blocks inter-server product features.

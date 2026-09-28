@@ -2,7 +2,10 @@
 
 Reviewed on 2026-09-27 against the official documentation and repositories.
 The current documentation identifies a1.156.0; that is a research baseline, not a
-tested Nexus compatibility claim. No real-host validation has been completed.
+tested Nexus compatibility claim. Subsequent maintainer tests on server 1.156.0
+validated diagnostic native loading, calls, script/VM reload and process restart;
+see the [checkpoint evidence](bridge-loading.md#evidence-and-next-gate). Networking
+and native worker lifetime have not been validated in the host.
 
 The first host attempt established that C Module loading requires the process
 argument `--enable_unsafe_libs` on the tested server. The public C Module example
@@ -48,7 +51,7 @@ the distinction between native x86_64 support and unvalidated ARM emulation.
 Proposed Nexus boundary: a version query, owned transport handles, asynchronous
 listen/connect/send/close operations, bounded polling and transport diagnostics.
 These are future Nexus functions, not nanos world APIs. The first native slice
-will validate entry-point loading before introducing worker lifetime complexity.
+validated diagnostic loading on one host before introducing worker lifetime complexity.
 
 Networking workers must own bytes and native resources only. They must never
 retain a Lua state, Player object or Lua callback. Lua pulls bounded events on
@@ -123,5 +126,6 @@ an explicitly configured generator. No standalone Lua interpreter or LuaRocks
 was on PATH. Rust is installed but is not required by the chosen implementation.
 
 Compiler discovery is not a successful build. Windows native compilation and
-host loading remain separate checkpoints. Linux build and runtime coverage are
-also pending. Do not publish support or performance claims from this inventory.
+host loading remain separate checkpoints. Windows and Linux standalone CI tests
+now pass; see the platform matrix and runtime evidence for actual coverage.
+Do not publish support or performance claims from this inventory.
