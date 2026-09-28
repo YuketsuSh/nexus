@@ -1,0 +1,3 @@
+[submodule "bridge/deps/module-sdk"]
+	path = bridge/deps/module-sdk
+	url = https://github.com/nanos-world/module-sdk.git

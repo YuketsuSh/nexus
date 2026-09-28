@@ -1,6 +1,11 @@
 # Private local development material
 /internal-docs/
 
+# Local builds and installation staging
+/build/
+/stage/
+__pycache__/
+
 # Compiled Lua sources
 luac.out
 

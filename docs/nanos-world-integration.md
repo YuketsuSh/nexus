@@ -4,6 +4,12 @@ Reviewed on 2026-09-27 against the official documentation and repositories.
 The current documentation identifies a1.156.0; that is a research baseline, not a
 tested Nexus compatibility claim. No real-host validation has been completed.
 
+The first host attempt established that C Module loading requires the process
+argument `--enable_unsafe_libs` on the tested server. The public C Module example
+omits this prerequisite. The flag also enables restricted Lua OS/I/O facilities
+for server Packages; it is part of the deployment trust boundary. That attempt
+stopped before native loading and does not validate the ABI.
+
 ## Packaging and languages
 
 The [Packages guide](https://docs.nanos-world.com/docs/core-concepts/packages/packages-guide)
@@ -32,6 +38,12 @@ revision reviewed is `8bea6bc806507fe82ab08f742f9c209fb4bae8f7`. Its public head
 reports Lua 5.4.9. Its Windows and Linux libraries are Git LFS objects, so plain
 pointer files cannot be linked. Pin the revision and verify downloaded objects.
 Do not assume that header version alone establishes the host's binary ABI.
+
+The bundled Linux archive failed shared-library linkage because it is non-PIC.
+Linux now builds the official Lua 5.4.9 sources with PIC, checking the archive hash
+and every SDK header before compilation. Windows retains the SDK library.
+See the [platform matrix](platforms.md) for source provenance, build checks and
+the distinction between native x86_64 support and unvalidated ARM emulation.
 
 Proposed Nexus boundary: a version query, owned transport handles, asynchronous
 listen/connect/send/close operations, bounded polling and transport diagnostics.

@@ -1,0 +1,86 @@
+name: Native loading
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: recursive
+          lfs: true
+          persist-credentials: false
+      - name: Materialize SDK libraries
+        run: git -C bridge/deps/module-sdk lfs pull
+      - name: Check repository privacy
+        shell: bash
+        run: |
+          test -z "$(git ls-files -- internal-docs)"
+          git check-ignore internal-docs/privacy-check.txt
+          git diff --check
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Test Linux artifact across distributions
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          readelf -h build/bridge/libnexus_bridge.so
+          readelf -d build/bridge/libnexus_bridge.so
+          readelf --version-info build/bridge/libnexus_bridge.so
+          for image in ubuntu:22.04 ubuntu:24.04 debian:13-slim; do
+            docker run --rm -v "$PWD:/work:ro" -w /work "$image" \
+              build/bridge/nexus_module_test \
+              /work/build/bridge/libnexus_bridge.so \
+              tests/native/module_contract.lua \
+              tests/runtime/nexus-bridge-check/Server/Index.lua
+          done
+      - name: Stage runtime checkpoint
+        run: cmake --install build --config Release --prefix stage
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bridge-${{ runner.os }}-x86_64
+          path: stage/
+          if-no-files-found: error
+
+  bundle:
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: bridge-*-x86_64
+          path: build/artifacts
+      - name: Assemble checked multi-platform package
+        run: >-
+          python3 tools/bundle_bridge.py
+          --windows build/artifacts/bridge-Windows-x86_64
+          --linux build/artifacts/bridge-Linux-x86_64
+          --revision "${{ github.event.pull_request.head.sha || github.sha }}"
+          --output build/nexus-bridge-windows-linux-x86_64.zip
+      - name: Test bundle validation
+        run: python3 -m unittest discover -s tests/python -v
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nexus-bridge-windows-linux-x86_64
+          path: |
+            build/nexus-bridge-windows-linux-x86_64.zip
+            build/nexus-bridge-windows-linux-x86_64.zip.sha256
+          if-no-files-found: error

@@ -15,5 +15,7 @@ be validated in real nanos world servers before network features proceed.
 Start with the [development roadmap](docs/roadmap.md) and
 [verified integration constraints](docs/nanos-world-integration.md).
 See [contributing](CONTRIBUTING.md) for the development workflow.
+The first native checkpoint has [build and runtime test instructions](docs/bridge-loading.md).
+See the [platform matrix](docs/platforms.md) for Windows, Linux and ARM limitations.
 
 Licensed under the [MIT license](LICENSE). Copyright 2026 Yuketsu.
