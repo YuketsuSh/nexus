@@ -6,11 +6,14 @@ It is the first prerequisite for the transport proof, not a usable network Bridg
 
 ## Build
 
-Requirements: Git with Git LFS, CMake 3.21 or newer and a 64-bit C++17 compiler.
+Requirements: Git with Git LFS, CMake 3.24 or newer and x86_64 C99/C++17 compilers.
 On Windows use Visual Studio C++ Build Tools with a Windows SDK. On Linux use GCC
-or Clang and the system C/C++ development libraries; Linux linking is currently
-blocked by the upstream SDK archive as detailed below. The official SDK is pinned as
-a submodule; no dependency download happens during CMake configuration.
+or Clang and the system C/C++ development libraries. The official SDK is pinned as
+a submodule. Linux configuration downloads the official Lua 5.4.9 source archive,
+verifies its published SHA-256 and compares every SDK header with the source.
+It builds a private static Lua library with position-independent code (PIC).
+Windows continues to use the pinned SDK's verified library. Neither target needs
+a separately installed Lua runtime. See [platforms](platforms.md) for the support limits.
 
 From the repository root:
 
@@ -27,9 +30,10 @@ For Ninja on Windows, run these commands in an x64 Visual Studio Developer
 PowerShell and add `-G Ninja` to the configure command. A build directory belongs
 to one generator/toolchain. Use a different build directory when changing either.
 
-Configuration rejects an unexpected SDK revision, an unmaterialized LFS pointer
-or a library whose SHA-256 does not match the pinned SDK. The linked SDK and its
-license come from nanos world. The installed DLL uses the Microsoft C runtime;
+Configuration rejects an unexpected SDK revision, Windows LFS pointer/library
+hash mismatch, Linux source archive hash mismatch or source/SDK header mismatch.
+Lua sources and checksums come from [lua.org](https://www.lua.org/ftp/).
+The installed DLL uses the Microsoft C runtime;
 a missing `VCRUNTIME140.dll` indicates a runtime dependency problem.
 
 ## Current native contract
@@ -46,32 +50,34 @@ a missing `VCRUNTIME140.dll` indicates a runtime dependency problem.
 | `pointer_bits` | Native pointer width, currently 64 |
 
 These fields do not discover the host's Lua patch version or prove compatibility
-with it. The upstream example links the SDK Lua library, and this milestone follows
-that boundary. Only `luaopen_nexus_bridge` is intentionally exported. There are no
+with it. The upstream example links Lua into the module; Linux rebuilds that same
+Lua version with PIC instead of linking the unusable upstream archive.
+Only `luaopen_nexus_bridge` is intentionally exported. There are no
 workers, sockets, persistent native resources or mutable process-global state yet.
 
 The standalone test dynamically loads the compiled library into a Lua state made
-with the same SDK. It checks the diagnostic contract, invalid arguments, independent
+with the same target's Lua library. It checks the diagnostic contract, invalid arguments, independent
 returned tables, garbage collection and 20 load/state lifetimes. It also compiles
 the runtime harness for Lua syntax without executing nanos world APIs. It cannot
 validate the real host's loader or lifecycle.
 
 ## One-server runtime procedure
 
-This procedure currently applies only to Windows. The local `stage/Packages/`
-contains `nexus_bridge.dll`, not a Linux binary. A Linux server requires
-`Packages/nexus-bridge/libnexus_bridge.so`; do not deploy this Windows staging
-directory as a Linux candidate. Linux validation is blocked until the SDK linkage
-issue below is resolved and a Linux artifact passes the standalone checks.
+Use the `nexus-bridge-windows-linux-x86_64` artifact from the candidate's successful
+CI run. Unpack its inner ZIP: it contains both `nexus_bridge.dll` and
+`libnexus_bridge.so` in the same Package, plus a `BUILD-INFO.json` recording the
+commit and `SHA256SUMS`. nanos world selects the library for the current OS.
+Do not substitute an artifact from a failed run or another commit.
+When building locally, `stage/` contains only the platform just built.
 
 Use branch `feat/bridge-native-loading` at the candidate commit identified in the
-PR. One isolated Windows x64 nanos world server is sufficient; no players,
+PR. One isolated Windows x64 or Linux x86_64 nanos world server is sufficient; no players,
 credentials, Proxy or second server are needed. Record the server version from
 the startup log. Keep an existing unrelated GameMode and its map/dependencies.
 
-1. Stop the test server. Copy both directories from `stage/Packages/` into its
+1. Stop the test server. Copy both directories from the artifact's `Packages/` into its
    `Packages/` directory:
-   - `nexus-bridge/`: `Package.toml`, `nexus_bridge.dll` and `licenses/`.
+   - `nexus-bridge/`: `Package.toml`, both native libraries and `licenses/`.
    - `nexus-bridge-check/`: `Package.toml` and `Server/Index.lua`.
 2. In the server's existing `Config.toml`, append `"nexus-bridge-check"` to
    `[game].packages`. Preserve existing entries and `game_mode`. The harness
@@ -82,6 +88,12 @@ the startup log. Keep an existing unrelated GameMode and its map/dependencies.
 
    ```powershell
    .\NanosWorldServer.exe --enable_unsafe_libs
+   ```
+
+   On Linux, launch through the official wrapper from the server directory:
+
+   ```sh
+   ./NanosWorldServer.sh --enable_unsafe_libs
    ```
 
    This is a process startup flag, not a console command or a Package setting.
@@ -108,7 +120,8 @@ the startup log. Keep an existing unrelated GameMode and its map/dependencies.
 6. Run `stop`, verify the process exits normally, then start it again and wait
    for another completed cycle. Stop the server when finished.
 
-Send back the candidate commit, Windows and nanos world versions, the startup
+Send back the candidate commit, OS/distribution, CPU architecture, container or
+emulation details and nanos world version, the startup
 through shutdown console log, and whether both reload commands and the restart
 completed. If any step crashes, stop testing and include the last log messages
 and crash report. If the Bridge global is missing, the entry point cannot load,
@@ -131,13 +144,13 @@ The first [CI run](https://github.com/YuketsuSh/nexus/actions/runs/36345525857)
 passed the Windows build, contract test and installation steps. Linux failed
 while linking the shared module: the pinned SDK's `liblua.a(lauxlib.c.o)` contains
 `R_X86_64_PC32` relocations against `stderr`; the linker requires a PIC rebuild.
-No Linux binary or test success is claimed. The Linux job remains enabled so this
-blocker stays visible. Consult the candidate's actual check results.
-
-Resolution requires an official PIC-compatible SDK archive, or a separately
-verified and agreed Linux linking contract. Do not silently substitute a system
-Lua library or assume that the nanos world executable exports the needed symbols.
-This issue blocks Linux support but does not invalidate the Windows build.
+That linkage failure is addressed by rebuilding the matching official Lua sources
+with PIC after comparing all SDK headers. Ubuntu 24.04 WSL compilation and the
+standalone contract have now passed locally. No host-exported Lua symbols or
+system Lua installation are assumed. CI builds on Ubuntu 22.04 and exercises that
+same Linux artifact inside Ubuntu 22.04, Ubuntu 24.04 and Debian 13 containers;
+consult the candidate's actual check results. These are library tests, not real
+nanos world server tests.
 
 The first real-server attempt refused the C Module because the startup flag was
 missing; the harness then reported that the Bridge global was unavailable.
@@ -152,12 +165,11 @@ The second host attempt progressed past the unsafe-library gate but requested
 `Packages/nexus-bridge/libnexus_bridge.so`, revealing that the test host uses the
 Linux loader. The supplied local artifact was Windows-only. It failed before
 loading native code, so neither attempt validates the ABI or reload behavior.
-Before preparing another host candidate, establish the host distribution/version,
-CPU architecture, container environment and nanos world build. Resolve Linux
-linkage and provide the matching artifact before requesting another Linux test.
+The combined candidate now supplies both platform libraries after successful CI
+checks. Record the host distribution/version, process architecture, container
+environment and nanos world build when running the next test.
 
-Real nanos world loading remains unvalidated on both platforms. The procedure
-above is available for a Windows test host only. After successful native-host
-feedback, the next milestone adds
+Real nanos world loading remains unvalidated on both platforms. ARM execution
+under emulation is also unvalidated. After successful native-host feedback, the next milestone adds
 bounded transport and tests two server processes, worker shutdown, Lua polling,
 slow peers and tick impact. That proof still blocks inter-server product features.

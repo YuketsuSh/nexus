@@ -39,6 +39,12 @@ reports Lua 5.4.9. Its Windows and Linux libraries are Git LFS objects, so plain
 pointer files cannot be linked. Pin the revision and verify downloaded objects.
 Do not assume that header version alone establishes the host's binary ABI.
 
+The bundled Linux archive failed shared-library linkage because it is non-PIC.
+Linux now builds the official Lua 5.4.9 sources with PIC, checking the archive hash
+and every SDK header before compilation. Windows retains the SDK library.
+See the [platform matrix](platforms.md) for source provenance, build checks and
+the distinction between native x86_64 support and unvalidated ARM emulation.
+
 Proposed Nexus boundary: a version query, owned transport handles, asynchronous
 listen/connect/send/close operations, bounded polling and transport diagnostics.
 These are future Nexus functions, not nanos world APIs. The first native slice

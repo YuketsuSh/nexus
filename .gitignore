@@ -4,6 +4,7 @@
 # Local builds and installation staging
 /build/
 /stage/
+__pycache__/
 
 # Compiled Lua sources
 luac.out
