@@ -1,10 +1,12 @@
 #include "transport.h"
+#include "listener.h"
 #include "socket_platform.h"
 
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
 #include <thread>
+#include <vector>
 
 using namespace nexus;
 namespace {
@@ -181,6 +183,100 @@ void stalled_consumer() {
     }
     check(drained > 0, "terminal queue did not preserve admitted data");
 }
+
+std::uint16_t listening(net::Listener& listener) {
+    until([&] { return listener.snapshot().state != net::State::starting; });
+    check(listener.snapshot().state == net::State::listening, "persistent listener failed");
+    return listener.snapshot().port;
+}
+std::unique_ptr<net::Transport> accept(net::Listener& listener) {
+    std::unique_ptr<net::Transport> session;
+    until([&] {
+        auto result = listener.accept();
+        check(result.status == wire::QueueStatus::ok || result.status == wire::QueueStatus::busy ||
+            result.status == wire::QueueStatus::empty, "accept failed");
+        session = std::move(result.transport);
+        return session != nullptr;
+    });
+    return session;
+}
+
+void multiple_connections() {
+    auto listener = std::make_unique<net::Listener>("127.0.0.1", 0);
+    const auto port = listening(*listener);
+    std::vector<std::unique_ptr<net::Transport>> clients, sessions;
+    for (unsigned i = 0; i < 3; ++i) {
+        clients.push_back(std::make_unique<net::Transport>(false, "127.0.0.1", port));
+        sessions.push_back(accept(*listener));
+        connected(*clients.back(), *sessions.back());
+        check(sessions.back()->snapshot().port == port, "accepted session lost local port");
+    }
+    for (unsigned i = 0; i < clients.size(); ++i) send(*clients[i], "peer:" + std::to_string(i));
+    for (unsigned i = 0; i < sessions.size(); ++i) {
+        check(receive(*sessions[i]) == "peer:" + std::to_string(i), "cross-peer data leakage");
+        send(*sessions[i], "reply:" + std::to_string(i));
+    }
+    for (unsigned i = 0; i < clients.size(); ++i)
+        check(receive(*clients[i]) == "reply:" + std::to_string(i), "wrong reply destination");
+
+    net::platform::OwnedSocket hostile;
+    raw_connect(hostile, port);
+    auto rejected = accept(*listener);
+    raw_send(hostile.value, std::string(12, 'X'));
+    until([&] { return rejected->snapshot().state == net::State::failed; });
+    check(rejected->snapshot().reason == net::Reason::protocol, "bad peer not rejected");
+    check(listener->snapshot().state == net::State::listening, "bad peer stopped listener");
+    clients[0]->close();
+    sessions[0]->close();
+    clients[0] = std::make_unique<net::Transport>(false, "127.0.0.1", port);
+    sessions[0] = accept(*listener);
+    connected(*clients[0], *sessions[0]);
+    // Accepted sessions must hold their own runtime/socket ownership, especially
+    // on Windows when the listener and its WSAStartup reference are destroyed.
+    listener.reset();
+    for (unsigned i = 0; i < clients.size(); ++i) {
+        send(*clients[i], "after listener destruction");
+        check(receive(*sessions[i]) == "after listener destruction", "listener closed a transferred session");
+    }
+}
+
+void bounded_pending_connections() {
+    net::Listener listener("127.0.0.1", 0);
+    const auto port = listening(listener);
+    std::vector<std::unique_ptr<net::Transport>> clients;
+    for (unsigned i = 0; i < net::Listener::pending_limit + 4; ++i)
+        clients.push_back(std::make_unique<net::Transport>(false, "127.0.0.1", port));
+    auto terminal_count = [&] {
+        unsigned count = 0;
+        for (const auto& client : clients) {
+            const auto state = client->snapshot().state;
+            if (state == net::State::closed || state == net::State::failed) ++count;
+        }
+        return count;
+    };
+    until([&] { return terminal_count() >= 4; });
+    check(terminal_count() == 4, "pending listener admission count mismatch");
+    // Unclaimed sockets expire without Lua calling accept, releasing the quota.
+    until([&] { return terminal_count() == clients.size(); }, 13);
+    net::Transport next(false, "127.0.0.1", port);
+    auto session = accept(listener);
+    connected(next, *session);
+    send(next, "after expiry");
+    check(receive(*session) == "after expiry", "listener did not recover after expiry");
+    listener.close();
+    listener.close();
+    check(listener.accept().status == wire::QueueStatus::closed, "closed listener still accepts");
+
+    for (int i = 0; i < 10; ++i) {
+        net::Listener pending("127.0.0.1", 0);
+        net::Transport client(false, "127.0.0.1", listening(pending));
+        until([&] { return client.snapshot().state == net::State::connected; });
+        const auto start = Clock::now();
+        pending.close();
+        check(Clock::now() - start < std::chrono::seconds(2), "listener close waited for peer");
+        until([&] { return client.snapshot().state == net::State::closed || client.snapshot().state == net::State::failed; });
+    }
+}
 }
 
 int main() {
@@ -191,6 +287,8 @@ int main() {
         hostile_peers();
         failures_and_cleanup();
         stalled_consumer();
+        multiple_connections();
+        bounded_pending_connections();
         std::cout << "TCP exchange, hostile peers, backpressure and worker cleanup passed\n";
         return 0;
     } catch (const std::exception& error) {

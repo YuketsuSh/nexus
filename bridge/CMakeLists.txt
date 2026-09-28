@@ -39,7 +39,7 @@ else()
     target_compile_options(nexus_wire PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
-add_library(nexus_transport STATIC src/transport.cpp)
+add_library(nexus_transport STATIC src/transport.cpp src/listener.cpp)
 target_link_libraries(nexus_transport PUBLIC nexus_wire)
 set_target_properties(nexus_transport PROPERTIES POSITION_INDEPENDENT_CODE ON CXX_VISIBILITY_PRESET hidden)
 if(WIN32)
@@ -78,12 +78,14 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/tests/runtime/nexus-bridge-check"
     DESTINATION Packages)
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/tests/runtime/nexus-transport-check"
     DESTINATION Packages)
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/tests/runtime/nexus-listener-check"
+    DESTINATION Packages)
 
 if(BUILD_TESTING)
     add_executable(nexus_transport_test "${PROJECT_SOURCE_DIR}/tests/native/transport_test.cpp")
     target_link_libraries(nexus_transport_test PRIVATE nexus_transport)
     add_test(NAME bridge_transport_contract COMMAND nexus_transport_test)
-    set_tests_properties(bridge_transport_contract PROPERTIES TIMEOUT 60)
+    set_tests_properties(bridge_transport_contract PROPERTIES TIMEOUT 90)
     add_executable(nexus_wire_test "${PROJECT_SOURCE_DIR}/tests/native/wire_test.cpp")
     target_link_libraries(nexus_wire_test PRIVATE nexus_wire)
     add_test(NAME bridge_wire_contract COMMAND nexus_wire_test)
@@ -96,6 +98,7 @@ if(BUILD_TESTING)
         "${PROJECT_SOURCE_DIR}/tests/runtime/nexus-bridge-check/Server/Index.lua")
     add_test(NAME bridge_transport_lua_contract COMMAND nexus_module_test
         "$<TARGET_FILE:nexus_bridge>" "${PROJECT_SOURCE_DIR}/tests/native/transport_contract.lua"
-        "${PROJECT_SOURCE_DIR}/tests/runtime/nexus-transport-check/Server/Index.lua")
+        "${PROJECT_SOURCE_DIR}/tests/runtime/nexus-transport-check/Server/Index.lua"
+        "${PROJECT_SOURCE_DIR}/tests/runtime/nexus-listener-check/Server/Index.lua")
     set_tests_properties(bridge_transport_lua_contract PROPERTIES TIMEOUT 60)
 endif()

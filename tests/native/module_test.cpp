@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 int main(int argc, char** argv) {
-    if (argc != 4) {
+    if (argc < 4) {
         std::fprintf(stderr, "Usage: nexus_module_test <module> <contract.lua> <syntax.lua>\n");
         return 2;
     }
@@ -47,7 +47,10 @@ int main(int argc, char** argv) {
         }
         if (status == LUA_OK) {
             // Compile the host harness without pretending to supply the host APIs.
-            status = luaL_loadfile(state, argv[3]);
+            for (int file = 3; file < argc && status == LUA_OK; ++file) {
+                status = luaL_loadfile(state, argv[file]);
+                if (status == LUA_OK) lua_pop(state, 1);
+            }
         }
         if (status != LUA_OK) {
             std::fprintf(stderr, "Contract failed: %s\n", lua_tostring(state, -1));

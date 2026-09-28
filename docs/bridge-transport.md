@@ -1,5 +1,9 @@
 # Bridge 0.2.0 transport checkpoint
 
+This records the single-peer milestone. For the current 0.3.0 candidate and its
+multi-session test, use the [listener checkpoint](bridge-listener.md). Its original
+single-peer API remains compatible; the bundled older harness now checks 0.3.0.
+
 This candidate adds real TCP transport to the native Bridge. It is a diagnostic
 checkpoint, not a Proxy or Agent. One session accepts/connects one peer; there is
 no multi-Agent acceptor, automatic reconnect, TLS, authentication or business
@@ -112,6 +116,21 @@ attributing tick changes to the Bridge. No capacity/performance claim is made.
 
 ## Automated coverage and release gate
 
+On 2026-09-28 the maintainer supplied nanos world 1.156.0 logs from two Linux
+Pterodactyl instances. Bridge 0.2.0 completed 100 validated messages in each
+direction over the allocated TCP transport port. A reported 1467 ticks (including
+its wait for B), average 0.033333 s, maximum 0.035741 s; B reported 100 ticks,
+average 0.033334 s, maximum 0.034404 s. Both reported maximum callback duration
+1 ms and zero backpressure. These light-load observations are not capacity
+benchmarks or a controlled baseline comparison. Addresses and server identifiers
+are omitted from public evidence.
+
+The maintainer also confirmed successful script/whole-VM reload, orderly
+stop/restart and abrupt B termination without problems. Those lifecycle outcomes
+are maintainer-reported; only the initial exchange logs were supplied. This closes
+the 0.2.0 single-peer host gate on that environment, not Windows host validation,
+ARM support, or the next multi-connection listener's lifecycle gate.
+
 Real loopback tests cover bidirectional binary/max-size messages, FIFO,
 fragmented/coalesced input, malformed/truncated streams, partial-frame timeouts,
 refused connections, bind collisions, backpressure, stalled receive queues and
@@ -120,9 +139,9 @@ and native module unload across 20 lifetimes. The host harness is syntax-checked
 standalone tests do not emulate nanos world events.
 
 CI checks Windows/Linux, three Linux distribution containers, native worker
-memory sanitizers and artifacts. Keep the PR draft until the two-server host
-checkpoint passes. Windows and Linux host validation are separate evidence;
-cross-platform host safety cannot be inferred from CI.
+memory sanitizers and artifacts. The single-peer host gate passed as recorded
+above. Windows and Linux host validation are separate evidence; cross-platform
+host safety cannot be inferred from CI.
 
 The harness uses documented [Server Tick/Stop/GetTime](https://docs.nanos-world.com/docs/scripting-reference/static-classes/server)
 and [Package Unload](https://docs.nanos-world.com/docs/scripting-reference/static-classes/package).

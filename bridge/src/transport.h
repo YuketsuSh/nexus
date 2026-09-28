@@ -1,6 +1,7 @@
 #pragma once
 
 #include "frame_queue.h"
+#include "socket_platform.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -24,6 +25,7 @@ public:
     static constexpr std::size_t queue_frames = 64;
     static constexpr std::size_t queue_bytes = 1024 * 1024;
     Transport(bool listen, std::string address, std::uint16_t port);
+    explicit Transport(platform::OwnedSocket accepted);
     ~Transport();
     Transport(const Transport&) = delete;
     Transport& operator=(const Transport&) = delete;
@@ -34,7 +36,12 @@ public:
 private:
     void run(bool listen, const std::string& address, std::uint16_t port) noexcept;
     Reason session(bool listen, const std::string& address, std::uint16_t port);
+    Reason exchange(platform::Socket socket);
     void pause();
+    // Keep Winsock alive across transfers from a listener, including before the
+    // new worker starts. Declared first so it outlives all sockets and the worker.
+    platform::Runtime runtime_;
+    platform::OwnedSocket accepted_;
     wire::FrameQueue incoming_{queue_frames, queue_bytes};
     wire::FrameQueue outgoing_{queue_frames, queue_bytes};
     std::atomic<bool> stop_{false};

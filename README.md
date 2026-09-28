@@ -21,5 +21,7 @@ The [wire contract](docs/bridge-wire.md) describes the framing and bounded queue
 under development for the transport worker.
 The [two-server checkpoint](docs/bridge-transport.md) covers the 0.2.0 TCP candidate
 and its required real-host lifecycle tests.
+The [persistent listener checkpoint](docs/bridge-listener.md) covers 0.3.0 and
+multiple connections on one transport port.
 
 Licensed under the [MIT license](LICENSE). Copyright 2026 Yuketsu.

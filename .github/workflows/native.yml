@@ -56,7 +56,8 @@ jobs:
               build/bridge/nexus_module_test \
               /work/build/bridge/libnexus_bridge.so \
               tests/native/transport_contract.lua \
-              tests/runtime/nexus-transport-check/Server/Index.lua
+              tests/runtime/nexus-transport-check/Server/Index.lua \
+              tests/runtime/nexus-listener-check/Server/Index.lua
           done
       - name: Check wire memory safety
         if: runner.os == 'Linux'
@@ -68,7 +69,7 @@ jobs:
           ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 build/wire-sanitized
           c++ -std=c++17 -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined \
             -pthread -Ibridge/src bridge/src/frame.cpp bridge/src/frame_queue.cpp \
-            bridge/src/transport.cpp tests/native/transport_test.cpp -o build/transport-sanitized
+            bridge/src/transport.cpp bridge/src/listener.cpp tests/native/transport_test.cpp -o build/transport-sanitized
           ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 build/transport-sanitized
       - name: Stage runtime checkpoint
         run: cmake --install build --config Release --prefix stage
