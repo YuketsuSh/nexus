@@ -42,7 +42,11 @@ coverage remain limited as recorded in `bridge-loading.md`. The transport branch
 first delivers independently tested framing and bounded native queues (see
 `bridge-wire.md`). Sockets, worker lifetime and Lua polling follow as a separate
 reviewable slice; the 0.2.0 candidate now provides that single-peer socket slice
-and its procedure in `bridge-transport.md`. The full two-server gate remains mandatory.
+and its procedure in `bridge-transport.md`. Its Linux/Pterodactyl exchange and
+lifecycle gate passed with maintainer feedback. The 0.3.0 persistent listener
+adds bounded multi-session admission and replacement connections; its host gate
+is specified in `bridge-listener.md`. Authentication/registration still follows
+these transport ownership checks. Windows real-host coverage remains pending.
 
 1. One isolated server: native module load, ABI diagnostics, initialization and
    cleanup. Record server build, platform, SDK revision and compiler.

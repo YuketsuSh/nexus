@@ -33,6 +33,8 @@ struct Runtime {
     bool ok;
     Runtime() { WSADATA data{}; ok = WSAStartup(MAKEWORD(2, 2), &data) == 0; }
     ~Runtime() { if (ok) WSACleanup(); }
+    Runtime(const Runtime&) = delete;
+    Runtime& operator=(const Runtime&) = delete;
 };
 inline int connect_ready(Socket socket) {
     fd_set write_set, errors;
@@ -66,10 +68,21 @@ inline int send(Socket socket, const char* data, int size) {
 
 struct OwnedSocket {
     Socket value = invalid;
-    explicit OwnedSocket(Socket socket = invalid) : value(socket) {}
+    OwnedSocket() = default;
+    explicit OwnedSocket(Socket socket) : value(socket) {}
     ~OwnedSocket() { reset(); }
     OwnedSocket(const OwnedSocket&) = delete;
     OwnedSocket& operator=(const OwnedSocket&) = delete;
+    OwnedSocket(OwnedSocket&& other) noexcept : value(other.release()) {}
+    OwnedSocket& operator=(OwnedSocket&& other) noexcept {
+        if (this != &other) reset(other.release());
+        return *this;
+    }
+    Socket release() noexcept {
+        const auto socket = value;
+        value = invalid;
+        return socket;
+    }
     void reset(Socket socket = invalid) {
         if (value != invalid) close(value);
         value = socket;

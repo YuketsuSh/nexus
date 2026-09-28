@@ -51,6 +51,8 @@ const char* name(wire::QueueStatus value) noexcept {
 
 Transport::Transport(bool listen, std::string address, std::uint16_t port)
     : worker_([this, listen, address = std::move(address), port] { run(listen, address, port); }) {}
+Transport::Transport(platform::OwnedSocket accepted)
+    : accepted_(std::move(accepted)), worker_([this] { run(false, "", 0); }) {}
 Transport::~Transport() { close(); }
 void Transport::close() {
     stop_ = true;
@@ -82,8 +84,16 @@ void Transport::run(bool listen, const std::string& address, std::uint16_t port)
 }
 
 Reason Transport::session(bool listen, const std::string& address, std::uint16_t port) {
-    platform::Runtime runtime;
-    if (!runtime.ok) return Reason::socket;
+    if (!runtime_.ok) return Reason::socket;
+    if (accepted_.value != platform::invalid) {
+        platform::OwnedSocket peer(accepted_.release());
+        if (!platform::nonblocking(peer.value)) return Reason::socket;
+        sockaddr_in local{};
+        platform::Length length = sizeof local;
+        if (getsockname(peer.value, reinterpret_cast<sockaddr*>(&local), &length) != 0) return Reason::socket;
+        port_ = ntohs(local.sin_port);
+        return exchange(peer.value);
+    }
     sockaddr_in target{};
     target.sin_family = AF_INET;
     target.sin_port = htons(port);
@@ -138,6 +148,10 @@ Reason Transport::session(bool listen, const std::string& address, std::uint16_t
             }
         }
     }
+    return exchange(peer.value);
+}
+
+Reason Transport::exchange(platform::Socket socket) {
     if (stop_) return Reason::local_close;
     state_ = State::connected;
     wire::Decoder decoder;
@@ -157,7 +171,7 @@ Reason Transport::session(bool listen, const std::string& address, std::uint16_t
             }
         }
         if (!sending.empty()) {
-            const auto count = platform::send(peer.value, sending.data() + sent, static_cast<int>(sending.size() - sent));
+            const auto count = platform::send(socket, sending.data() + sent, static_cast<int>(sending.size() - sent));
             if (count > 0) sent += static_cast<std::size_t>(count);
             else if (count == 0 || !platform::pending()) return Reason::io;
             if (sent == sending.size()) sending.clear();
@@ -170,7 +184,7 @@ Reason Transport::session(bool listen, const std::string& address, std::uint16_t
         }
         if (!received) {
             if (begin == end) {
-                const auto count = ::recv(peer.value, buffer, sizeof buffer, 0);
+                const auto count = ::recv(socket, buffer, sizeof buffer, 0);
                 if (count == 0) return decoder.finish().error == wire::DecodeError::none ? Reason::peer_closed : Reason::protocol;
                 if (count < 0 && !platform::pending()) return Reason::io;
                 if (count > 0) { begin = 0; end = static_cast<std::size_t>(count); }

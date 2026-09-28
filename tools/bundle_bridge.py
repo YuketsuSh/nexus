@@ -20,6 +20,8 @@ def bundle(windows, linux, revision, output):
         "Packages/nexus-bridge-check/Server/Index.lua",
         "Packages/nexus-transport-check/Package.toml",
         "Packages/nexus-transport-check/Server/Index.lua",
+        "Packages/nexus-listener-check/Package.toml",
+        "Packages/nexus-listener-check/Server/Index.lua",
     ]
     files = {}
     for name in common:

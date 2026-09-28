@@ -5,7 +5,7 @@ local address = "127.0.0.1"
 local port = 7780 -- TCP transport port, separate from the nanos world game ports
 
 assert(role == "listen" or role == "connect", "Invalid transport test role")
-assert(nexus_bridge.info().bridge_version == "0.2.0", "Install Bridge 0.2.0 binaries")
+assert(nexus_bridge.info().bridge_version == "0.3.0", "Install Bridge 0.3.0 binaries")
 local session = assert(nexus_bridge[role](address, port))
 local peer_role = role == "listen" and "connect" or "listen"
 local sent, received, ticks, busy = 0, 0, 0, 0

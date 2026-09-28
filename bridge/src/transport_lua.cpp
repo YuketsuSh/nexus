@@ -1,5 +1,6 @@
 #include "transport_lua.h"
 #include "transport.h"
+#include "listener.h"
 #include <new>
 
 extern "C" {
@@ -13,6 +14,7 @@ constexpr const char* quota_key = "nexus.transport.quota.v1";
 struct Quota { unsigned active; };
 struct Handle {
     nexus::net::Transport* transport;
+    nexus::net::Listener* listener;
     nexus::wire::Frame* pending;
     Quota* quota;
 };
@@ -28,6 +30,11 @@ void release(Handle* handle) {
         handle->transport = nullptr;
         --handle->quota->active;
     }
+    if (handle->listener) {
+        delete handle->listener;
+        handle->listener = nullptr;
+        --handle->quota->active;
+    }
 }
 int close_handle(lua_State* state) {
     release(checked(state));
@@ -35,7 +42,8 @@ int close_handle(lua_State* state) {
 }
 int snapshot(lua_State* state) {
     auto* handle = checked(state);
-    const auto value = handle->transport ? handle->transport->snapshot()
+    const auto value = handle->listener ? handle->listener->snapshot()
+        : handle->transport ? handle->transport->snapshot()
         : nexus::net::Snapshot{nexus::net::State::closed, nexus::net::Reason::local_close, 0};
     lua_pushstring(state, nexus::net::name(value.state));
     lua_pushstring(state, nexus::net::name(value.reason));
@@ -44,6 +52,7 @@ int snapshot(lua_State* state) {
 }
 int send(lua_State* state) {
     auto* handle = checked(state);
+    if (handle->listener) return luaL_error(state, "send requires an accepted or connected session");
     luaL_checktype(state, 2, LUA_TSTRING);
     std::size_t size = 0;
     const char* bytes = lua_tolstring(state, 2, &size);
@@ -59,6 +68,7 @@ int send(lua_State* state) {
 }
 int receive(lua_State* state) {
     auto* handle = checked(state);
+    if (handle->listener) return luaL_error(state, "receive requires an accepted or connected session");
     auto status = nexus::wire::QueueStatus::closed;
     bool failed = false;
     try {
@@ -86,7 +96,35 @@ int receive(lua_State* state) {
     return 2;
 }
 
-int create(lua_State* state, bool listen) {
+int accept(lua_State* state) {
+    auto* owner = checked(state);
+    if (owner->transport) return luaL_error(state, "accept requires a listener");
+    if (!owner->listener || owner->quota->active >= 16) {
+        lua_pushnil(state);
+        lua_pushstring(state, owner->listener ? "handle_limit" : "closed");
+        return 2;
+    }
+    // Complete all potentially longjmp-producing userdata setup before taking
+    // native ownership. Failed/empty accepts leave a harmless empty userdata.
+    auto* handle = new (lua_newuserdatauv(state, sizeof(Handle), 1)) Handle{nullptr, nullptr, nullptr, owner->quota};
+    luaL_setmetatable(state, handle_type);
+    lua_getiuservalue(state, 1, 1);
+    lua_setiuservalue(state, -2, 1);
+    auto result_status = nexus::wire::QueueStatus::closed;
+    bool failed = false;
+    try {
+        auto result = owner->listener->accept();
+        result_status = result.status;
+        handle->transport = result.transport.release();
+    } catch (...) { failed = true; }
+    if (handle->transport) { ++handle->quota->active; return 1; }
+    lua_pushnil(state);
+    lua_pushstring(state, failed ? "resource_error" : nexus::net::name(result_status));
+    return 2;
+}
+
+int create(lua_State* state, int mode) {
+    const bool listen = mode != 0;
     luaL_checktype(state, 1, LUA_TSTRING);
     std::size_t size = 0;
     const char* address = lua_tolstring(state, 1, &size);
@@ -100,13 +138,16 @@ int create(lua_State* state, bool listen) {
         lua_pushliteral(state, "handle_limit");
         return 2;
     }
-    auto* handle = new (lua_newuserdatauv(state, sizeof(Handle), 1)) Handle{nullptr, nullptr, quota};
+    auto* handle = new (lua_newuserdatauv(state, sizeof(Handle), 1)) Handle{nullptr, nullptr, nullptr, quota};
     luaL_setmetatable(state, handle_type);
     lua_pushvalue(state, -2); // Keep quota alive at least as long as this handle.
     lua_setiuservalue(state, -2, 1);
-    try { handle->transport = new nexus::net::Transport(listen, std::string(address, size), static_cast<std::uint16_t>(port)); }
+    try {
+        if (mode == 2) handle->listener = new nexus::net::Listener(std::string(address, size), static_cast<std::uint16_t>(port));
+        else handle->transport = new nexus::net::Transport(listen, std::string(address, size), static_cast<std::uint16_t>(port));
+    }
     catch (...) { /* No partially created worker escapes its constructor. */ }
-    if (!handle->transport) {
+    if (!handle->transport && !handle->listener) {
         lua_pushnil(state);
         lua_pushliteral(state, "resource_error");
         return 2;
@@ -114,15 +155,16 @@ int create(lua_State* state, bool listen) {
     ++quota->active;
     return 1;
 }
-int listen(lua_State* state) { return create(state, true); }
-int connect(lua_State* state) { return create(state, false); }
+int listen(lua_State* state) { return create(state, 1); }
+int connect(lua_State* state) { return create(state, 0); }
+int listener(lua_State* state) { return create(state, 2); }
 }
 
 void add_transport_api(lua_State* state) {
     if (luaL_newmetatable(state, handle_type)) {
         const luaL_Reg methods[] = {{"close", close_handle}, {"__gc", close_handle},
             {"__close", close_handle}, {"status", snapshot}, {"send", send},
-            {"receive", receive}, {nullptr, nullptr}};
+            {"receive", receive}, {"accept", accept}, {nullptr, nullptr}};
         luaL_setfuncs(state, methods, 0);
         lua_pushvalue(state, -1);
         lua_setfield(state, -2, "__index");
@@ -140,4 +182,6 @@ void add_transport_api(lua_State* state) {
     lua_setfield(state, -2, "listen");
     lua_pushcfunction(state, connect);
     lua_setfield(state, -2, "connect");
+    lua_pushcfunction(state, listener);
+    lua_setfield(state, -2, "listener");
 }

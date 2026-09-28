@@ -30,6 +30,8 @@ class BundleTests(unittest.TestCase):
             "Packages/nexus-bridge-check/Server/Index.lua",
             "Packages/nexus-transport-check/Package.toml",
             "Packages/nexus-transport-check/Server/Index.lua",
+            "Packages/nexus-listener-check/Package.toml",
+            "Packages/nexus-listener-check/Server/Index.lua",
         ]
         for platform in (self.windows, self.linux):
             for name in common:

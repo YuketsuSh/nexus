@@ -1,7 +1,7 @@
 [meta]
 title = "Nexus Bridge"
 author = "Yuketsu"
-version = "0.2.0"
+version = "0.3.0"
 
 [c_module]
 lua_version = "5.4"
