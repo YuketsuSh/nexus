@@ -18,6 +18,8 @@ def bundle(windows, linux, revision, output):
         "Packages/nexus-bridge/licenses/LICENSE.txt",
         "Packages/nexus-bridge-check/Package.toml",
         "Packages/nexus-bridge-check/Server/Index.lua",
+        "Packages/nexus-transport-check/Package.toml",
+        "Packages/nexus-transport-check/Server/Index.lua",
     ]
     files = {}
     for name in common:

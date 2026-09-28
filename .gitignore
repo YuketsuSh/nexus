@@ -5,6 +5,7 @@
 /build/
 /stage/
 __pycache__/
+.idea/
 
 # Compiled Lua sources
 luac.out

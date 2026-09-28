@@ -44,12 +44,19 @@ jobs:
           readelf --version-info build/bridge/libnexus_bridge.so
           for image in ubuntu:22.04 ubuntu:24.04 debian:13-slim; do
             docker run --rm -v "$PWD:/work:ro" -w /work "$image" \
+              build/bridge/nexus_transport_test
+            docker run --rm -v "$PWD:/work:ro" -w /work "$image" \
               build/bridge/nexus_wire_test
             docker run --rm -v "$PWD:/work:ro" -w /work "$image" \
               build/bridge/nexus_module_test \
               /work/build/bridge/libnexus_bridge.so \
               tests/native/module_contract.lua \
               tests/runtime/nexus-bridge-check/Server/Index.lua
+            docker run --rm -v "$PWD:/work:ro" -w /work "$image" \
+              build/bridge/nexus_module_test \
+              /work/build/bridge/libnexus_bridge.so \
+              tests/native/transport_contract.lua \
+              tests/runtime/nexus-transport-check/Server/Index.lua
           done
       - name: Check wire memory safety
         if: runner.os == 'Linux'
@@ -59,6 +66,10 @@ jobs:
             -pthread -Ibridge/src bridge/src/frame.cpp bridge/src/frame_queue.cpp \
             tests/native/wire_test.cpp -o build/wire-sanitized
           ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 build/wire-sanitized
+          c++ -std=c++17 -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined \
+            -pthread -Ibridge/src bridge/src/frame.cpp bridge/src/frame_queue.cpp \
+            bridge/src/transport.cpp tests/native/transport_test.cpp -o build/transport-sanitized
+          ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 build/transport-sanitized
       - name: Stage runtime checkpoint
         run: cmake --install build --config Release --prefix stage
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

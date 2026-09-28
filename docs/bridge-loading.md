@@ -1,6 +1,9 @@
 # Bridge native loading checkpoint
 
-This milestone builds the real `nexus_bridge` C Module entry point and its
+This document records the diagnostic loading milestone. For the current 0.2.0
+socket candidate, use the [two-server transport checkpoint](bridge-transport.md).
+
+The original milestone builds the real `nexus_bridge` C Module entry point and its
 `info()` diagnostic. It contains no networking, authentication or player logic.
 It is the first prerequisite for the transport proof, not a usable network Bridge.
 
@@ -43,7 +46,7 @@ a missing `VCRUNTIME140.dll` indicates a runtime dependency problem.
 | Field | Meaning |
 | --- | --- |
 | `abi_version` | Nexus native surface version, currently 1 |
-| `bridge_version` | Component version, currently 0.1.0 |
+| `bridge_version` | Component version, currently 0.2.0 |
 | `lua_headers` | SDK header release used at build time |
 | `linked_lua_api_version` | Lua API version from the linked SDK, currently 504 |
 | `sdk_revision` | Pinned official SDK commit |
@@ -52,8 +55,9 @@ a missing `VCRUNTIME140.dll` indicates a runtime dependency problem.
 These fields do not discover the host's Lua patch version or prove compatibility
 with it. The upstream example links Lua into the module; Linux rebuilds that same
 Lua version with PIC instead of linking the unusable upstream archive.
-Only `luaopen_nexus_bridge` is intentionally exported. There are no
-workers, sockets, persistent native resources or mutable process-global state yet.
+Only `luaopen_nexus_bridge` is intentionally exported. The 0.1.0 diagnostic had
+no workers or sockets. Version 0.2.0 adds owned transport sessions; their API and
+cleanup requirements are documented in the transport checkpoint.
 
 The standalone test dynamically loads the compiled library into a Lua state made
 with the same target's Lua library. It checks the diagnostic contract, invalid arguments, independent
@@ -104,7 +108,7 @@ the startup log. Keep an existing unrelated GameMode and its map/dependencies.
    its own log prefix), with no assertion or native-loader error:
 
    ```text
-   [Nexus check] loaded bridge=0.1.0 abi=1 headers=Lua 5.4.9 linked_api=504 bits=64
+   [Nexus check] loaded bridge=0.2.0 abi=1 headers=Lua 5.4.9 linked_api=504 bits=64
    [Nexus check] completed 100 Lua-driven native calls
    ```
 

@@ -19,5 +19,7 @@ The first native checkpoint has [build and runtime test instructions](docs/bridg
 See the [platform matrix](docs/platforms.md) for Windows, Linux and ARM limitations.
 The [wire contract](docs/bridge-wire.md) describes the framing and bounded queues
 under development for the transport worker.
+The [two-server checkpoint](docs/bridge-transport.md) covers the 0.2.0 TCP candidate
+and its required real-host lifecycle tests.
 
 Licensed under the [MIT license](LICENSE). Copyright 2026 Yuketsu.
