@@ -4,6 +4,7 @@ extern "C" {
 }
 
 #include "nexus_version.h"
+#include "transport_lua.h"
 
 namespace {
 int info(lua_State* state) {
@@ -38,5 +39,6 @@ int info(lua_State* state) {
 extern "C" NEXUS_EXPORT int luaopen_nexus_bridge(lua_State* state) {
     const luaL_Reg functions[] = {{"info", info}, {nullptr, nullptr}};
     luaL_newlib(state, functions);
+    add_transport_api(state);
     return 1;
 }

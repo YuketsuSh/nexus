@@ -1,9 +1,8 @@
 # Bridge framing and queue contract
 
-This is the implemented C++ foundation for the transport worker. It is built and
-tested as `nexus_wire`, but is not yet exposed through the diagnostic Lua module.
-There are no sockets, background workers or inter-server exchanges in this slice.
-It does not establish transport support or authenticate any peer.
+This is the implemented C++ foundation used by the [transport worker](bridge-transport.md).
+It is built and tested as `nexus_wire`. It does not authenticate peers or establish
+real nanos world transport support without the runtime checkpoint.
 
 ## Frame format
 
@@ -95,7 +94,7 @@ count/byte limits, ownership, ring reuse, close/drain, and concurrent producers.
 Linux CI also runs AddressSanitizer and UndefinedBehaviorSanitizer checks.
 
 Passing these checks does not establish socket behavior, thread-safe Lua access,
-host unload safety or tick impact. Next, the socket worker must use these bounds
-and implement explicit cleanup before exposing a two-server runtime checkpoint.
+host unload safety or tick impact. The socket worker uses these bounds and exposes
+explicit cleanup for the separate two-server runtime checkpoint.
 Only the nanos world execution thread may call Lua; workers must own native data
 only. No inter-server product feature is enabled before that runtime proof passes.

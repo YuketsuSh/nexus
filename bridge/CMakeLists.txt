@@ -39,10 +39,22 @@ else()
     target_compile_options(nexus_wire PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 
-add_library(nexus_bridge SHARED src/module.cpp)
+add_library(nexus_transport STATIC src/transport.cpp)
+target_link_libraries(nexus_transport PUBLIC nexus_wire)
+set_target_properties(nexus_transport PROPERTIES POSITION_INDEPENDENT_CODE ON CXX_VISIBILITY_PRESET hidden)
+if(WIN32)
+    target_link_libraries(nexus_transport PUBLIC ws2_32)
+endif()
+if(MSVC)
+    target_compile_options(nexus_transport PRIVATE /W4 /WX)
+else()
+    target_compile_options(nexus_transport PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
+add_library(nexus_bridge SHARED src/module.cpp src/transport_lua.cpp)
 target_compile_features(nexus_bridge PRIVATE cxx_std_17)
 target_include_directories(nexus_bridge PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
-target_link_libraries(nexus_bridge PRIVATE nexus_lua_sdk)
+target_link_libraries(nexus_bridge PRIVATE nexus_lua_sdk nexus_transport)
 set_target_properties(nexus_bridge PROPERTIES CXX_VISIBILITY_PRESET hidden)
 if(MSVC)
     target_compile_options(nexus_bridge PRIVATE /W4 /WX)
@@ -64,8 +76,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/tests/runtime/nexus-bridge-check"
     DESTINATION Packages)
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/tests/runtime/nexus-transport-check"
+    DESTINATION Packages)
 
 if(BUILD_TESTING)
+    add_executable(nexus_transport_test "${PROJECT_SOURCE_DIR}/tests/native/transport_test.cpp")
+    target_link_libraries(nexus_transport_test PRIVATE nexus_transport)
+    add_test(NAME bridge_transport_contract COMMAND nexus_transport_test)
+    set_tests_properties(bridge_transport_contract PROPERTIES TIMEOUT 60)
     add_executable(nexus_wire_test "${PROJECT_SOURCE_DIR}/tests/native/wire_test.cpp")
     target_link_libraries(nexus_wire_test PRIVATE nexus_wire)
     add_test(NAME bridge_wire_contract COMMAND nexus_wire_test)
@@ -76,4 +94,8 @@ if(BUILD_TESTING)
     add_test(NAME bridge_module_contract COMMAND nexus_module_test
         "$<TARGET_FILE:nexus_bridge>" "${PROJECT_SOURCE_DIR}/tests/native/module_contract.lua"
         "${PROJECT_SOURCE_DIR}/tests/runtime/nexus-bridge-check/Server/Index.lua")
+    add_test(NAME bridge_transport_lua_contract COMMAND nexus_module_test
+        "$<TARGET_FILE:nexus_bridge>" "${PROJECT_SOURCE_DIR}/tests/native/transport_contract.lua"
+        "${PROJECT_SOURCE_DIR}/tests/runtime/nexus-transport-check/Server/Index.lua")
+    set_tests_properties(bridge_transport_lua_contract PROPERTIES TIMEOUT 60)
 endif()
