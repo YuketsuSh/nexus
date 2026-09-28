@@ -169,7 +169,21 @@ The combined candidate now supplies both platform libraries after successful CI
 checks. Record the host distribution/version, process architecture, container
 environment and nanos world build when running the next test.
 
-Real nanos world loading remains unvalidated on both platforms. ARM execution
-under emulation is also unvalidated. After successful native-host feedback, the next milestone adds
+On 2026-09-28 the maintainer supplied a startup screenshot from nanos world
+1.156.0 (Unreal 5.7.4). It shows the native module loading, the diagnostic
+reporting Bridge 0.1.0, ABI 1, Lua headers 5.4.9, linked API 504 and 64-bit
+pointers, then completing 100 Lua-driven native calls. Other GameMode Packages
+also loaded in that run. This confirms startup and the diagnostic call boundary
+on that host; it does not validate transport or GameMode integration beyond startup.
+The test follows the Linux artifact correction, but the screenshot does not
+identify the distribution, process architecture or artifact commit. Those
+environment details still need confirmation. The screenshot is not committed
+because it contains unrelated server identifiers.
+
+Script reload, whole-VM reload, clean shutdown and restart results remain pending.
+Windows host loading and ARM execution under emulation are also unvalidated.
+PR #2 was merged by the maintainer; merging does not supply missing runtime
+evidence. Complete the remaining one-server procedure before adding transport.
+After successful lifecycle feedback, the next milestone adds
 bounded transport and tests two server processes, worker shutdown, Lua polling,
 slow peers and tick impact. That proof still blocks inter-server product features.
